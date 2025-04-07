@@ -1,73 +1,45 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import pandas_ta as ta  # ✅ Single import
+import ta  # using the `ta` library for technical analysis
 
-st.set_page_config(page_title="📈 Stock Analyzer", layout="wide")
+st.set_page_config(page_title="Stock Trading Dashboard", layout="wide")
 
-st.title("📊 Stock Market Dashboard")
-st.markdown("Analyze stock trends using technical indicators like **MACD** and **RSI**.")
+st.title("📈 Stock Trading App with MACD and RSI")
 
-# --- Sidebar ---
-st.sidebar.header("🔍 Stock Selector")
-stock_symbol = st.sidebar.text_input("Enter Stock Ticker", value="AAPL")
-start_date = st.sidebar.date_input("Start Date", value=pd.to_datetime("2023-01-01"))
-end_date = st.sidebar.date_input("End Date", value=pd.to_datetime("today"))
+# Sidebar for user input
+symbol = st.sidebar.text_input("Enter Stock Symbol", value="AAPL")
+start_date = st.sidebar.date_input("Start Date", pd.to_datetime("2022-01-01"))
+end_date = st.sidebar.date_input("End Date", pd.to_datetime("today"))
 
-# --- Data Fetch ---
-@st.cache_data
-def load_stock_data(symbol, start, end):
-    try:
-        df = yf.download(symbol, start=start, end=end)
-        if not df.empty:
-            return df
-    except Exception as e:
-        st.error(f"Failed to fetch data: {e}")
-    return pd.DataFrame()
+# Fetch data
+try:
+    data = yf.download(symbol, start=start_date, end=end_date)
+    if data.empty:
+        st.error("No data found for the selected stock and date range.")
+    else:
+        st.subheader(f"{symbol} Stock Data")
+        st.line_chart(data["Close"])
 
-data = load_stock_data(stock_symbol, start_date, end_date)
+        # Calculate Indicators
+        macd_indicator = ta.trend.MACD(data["Close"])
+        data["MACD"] = macd_indicator.macd()
+        data["Signal_Line"] = macd_indicator.macd_signal()
 
-if data.empty:
-    st.error("No stock data found. Please try a valid ticker or change the date range.")
-    st.stop()
+        rsi_indicator = ta.momentum.RSIIndicator(data["Close"])
+        data["RSI"] = rsi_indicator.rsi()
 
-st.subheader(f"📅 Historical Stock Data for `{stock_symbol.upper()}`")
-st.dataframe(data.tail())
+        # Display indicators
+        st.subheader("MACD & Signal Line")
+        if "MACD" in data.columns and "Signal_Line" in data.columns:
+            st.line_chart(data[["MACD", "Signal_Line"]])
+        else:
+            st.warning("MACD or Signal Line not available.")
 
-# --- Technical Indicators ---
-st.subheader("📈 Price Chart")
-st.line_chart(data['Close'])
-
-# Calculate MACD
-def calculate_macd(df):
-    try:
-        macd_result = ta.macd(df['Close'])
-        df = pd.concat([df, macd_result], axis=1)
-    except Exception as e:
-        st.warning(f"MACD Calculation Failed: {e}")
-    return df
-
-# Calculate RSI
-def calculate_rsi(df):
-    try:
-        df['RSI'] = ta.rsi(df['Close'])
-    except Exception as e:
-        st.warning(f"RSI Calculation Failed: {e}")
-    return df
-
-data = calculate_macd(data)
-data = calculate_rsi(data)
-
-# --- MACD Plot ---
-st.subheader("🔻 MACD Indicator")
-if 'MACD_12_26_9' in data.columns and 'MACDs_12_26_9' in data.columns:
-    st.line_chart(data[['MACD_12_26_9', 'MACDs_12_26_9']])
-else:
-    st.warning("MACD/Signal Line not available (not enough data).")
-
-# --- RSI Plot ---
-st.subheader("📈 RSI Indicator")
-if 'RSI' in data.columns:
-    st.line_chart(data[['RSI']])
-else:
-    st.warning("RSI data not available.")
+        st.subheader("RSI")
+        if "RSI" in data.columns:
+            st.line_chart(data["RSI"])
+        else:
+            st.warning("RSI not available.")
+except Exception as e:
+    st.error(f"Something went wrong: {e}")
