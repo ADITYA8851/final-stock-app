@@ -1,8 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-from pandas_ta.trend import macd
-from pandas_ta.momentum import rsi
+import pandas_ta as ta  # ✅ Single import
 
 st.set_page_config(page_title="📈 Stock Analyzer", layout="wide")
 
@@ -42,9 +41,8 @@ st.line_chart(data['Close'])
 # Calculate MACD
 def calculate_macd(df):
     try:
-        macd_result = macd(df['Close'])
-        df['MACD'] = macd_result['MACD_12_26_9']
-        df['Signal_Line'] = macd_result['MACDs_12_26_9']
+        macd_result = ta.macd(df['Close'])
+        df = pd.concat([df, macd_result], axis=1)
     except Exception as e:
         st.warning(f"MACD Calculation Failed: {e}")
     return df
@@ -52,7 +50,7 @@ def calculate_macd(df):
 # Calculate RSI
 def calculate_rsi(df):
     try:
-        df['RSI'] = rsi(df['Close'])
+        df['RSI'] = ta.rsi(df['Close'])
     except Exception as e:
         st.warning(f"RSI Calculation Failed: {e}")
     return df
@@ -62,8 +60,8 @@ data = calculate_rsi(data)
 
 # --- MACD Plot ---
 st.subheader("🔻 MACD Indicator")
-if 'MACD' in data.columns and 'Signal_Line' in data.columns:
-    st.line_chart(data[['MACD', 'Signal_Line']])
+if 'MACD_12_26_9' in data.columns and 'MACDs_12_26_9' in data.columns:
+    st.line_chart(data[['MACD_12_26_9', 'MACDs_12_26_9']])
 else:
     st.warning("MACD/Signal Line not available (not enough data).")
 
