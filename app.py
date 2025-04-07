@@ -42,7 +42,7 @@ price = info.get("regularMarketPrice", 0)
 st.subheader(f"📌 {name} ({ticker})")
 st.metric(label="Current Price", value=f"${price:.2f}")
 
-# Add RSI and MACD
+# Compute indicators
 data['RSI'] = compute_rsi(data['Close'])
 data['MACD'], data['Signal_Line'] = compute_macd(data['Close'])
 
@@ -65,12 +65,18 @@ st.subheader("📉 Technical Indicators")
 col1, col2 = st.columns(2)
 
 with col1:
-    st.line_chart(data['RSI'], use_container_width=True)
-    st.caption("Relative Strength Index (RSI)")
+    if 'RSI' in data.columns and not data['RSI'].dropna().empty:
+        st.line_chart(data['RSI'], use_container_width=True)
+        st.caption("Relative Strength Index (RSI)")
+    else:
+        st.warning("RSI data not available.")
 
 with col2:
     if 'MACD' in data.columns and 'Signal_Line' in data.columns:
-        st.line_chart(data[['MACD', 'Signal_Line']], use_container_width=True)
-        st.caption("MACD & Signal Line")
+        if not data[['MACD', 'Signal_Line']].dropna().empty:
+            st.line_chart(data[['MACD', 'Signal_Line']], use_container_width=True)
+            st.caption("MACD & Signal Line")
+        else:
+            st.warning("MACD data not available (too few data points or all NaN). Try selecting a longer time period or different interval.")
     else:
-        st.warning("Not enough data to calculate MACD. Try a larger time range or different interval.")
+        st.warning("MACD indicators not available.")
