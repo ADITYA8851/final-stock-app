@@ -1,74 +1,54 @@
 import streamlit as st
 import yfinance as yf
-import pandas_ta as ta
 import pandas as pd
 import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
 st.title("📈 Stock Analysis Dashboard (TradingView Style)")
 
-# Input for stock symbol
 symbol = st.text_input("Enter Stock Symbol (e.g., AAPL, INFY.NS)", "AAPL")
-
-# Select date range
 start_date = st.date_input("Start Date", pd.to_datetime("2023-01-01"))
 end_date = st.date_input("End Date", pd.to_datetime("today"))
 
+def calculate_macd(data, short=12, long=26, signal=9):
+    exp1 = data['Close'].ewm(span=short, adjust=False).mean()
+    exp2 = data['Close'].ewm(span=long, adjust=False).mean()
+    macd = exp1 - exp2
+    signal_line = macd.ewm(span=signal, adjust=False).mean()
+    return macd, signal_line
+
+def calculate_rsi(data, period=14):
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
 if symbol:
-    try:
-        data = yf.download(symbol, start=start_date, end=end_date)
-        if data.empty:
-            st.warning("No data available. Please check the symbol or date range.")
-        else:
-            data.dropna(inplace=True)
+    data = yf.download(symbol, start=start_date, end=end_date)
+    if data.empty:
+        st.warning("No data found.")
+    else:
+        st.subheader(f"{symbol} Price Chart")
+        fig = go.Figure()
+        fig.add_trace(go.Candlestick(
+            x=data.index,
+            open=data['Open'],
+            high=data['High'],
+            low=data['Low'],
+            close=data['Close'],
+            name="Candlestick"
+        ))
+        fig.update_layout(xaxis_rangeslider_visible=False, height=600)
+        st.plotly_chart(fig, use_container_width=True)
 
-            st.subheader(f"{symbol} Stock Chart")
-            fig = go.Figure()
+        # Add Indicators
+        data['MACD'], data['Signal_Line'] = calculate_macd(data)
+        data['RSI'] = calculate_rsi(data)
 
-            fig.add_trace(go.Candlestick(
-                x=data.index,
-                open=data['Open'],
-                high=data['High'],
-                low=data['Low'],
-                close=data['Close'],
-                name="Price"
-            ))
+        st.subheader("📊 MACD Indicator")
+        st.line_chart(data[['MACD', 'Signal_Line']])
 
-            fig.update_layout(
-                xaxis_rangeslider_visible=False,
-                height=600,
-                margin=dict(l=20, r=20, t=30, b=20)
-            )
-
-            st.plotly_chart(fig, use_container_width=True)
-
-            # Calculate MACD and RSI
-            macd = ta.macd(data['Close'])
-            rsi = ta.rsi(data['Close'])
-
-            # Add indicators if they exist
-            if macd is not None and not macd.empty:
-                data = pd.concat([data, macd], axis=1)
-            else:
-                st.warning("MACD data not available (not enough data).")
-
-            if rsi is not None and not rsi.empty:
-                data['RSI'] = rsi
-            else:
-                st.warning("RSI data not available (not enough data).")
-
-            # Plot indicators
-            if 'MACD_12_26_9' in data.columns and 'MACDs_12_26_9' in data.columns:
-                st.subheader("📉 MACD Indicator")
-                st.line_chart(data[['MACD_12_26_9', 'MACDs_12_26_9']])
-            else:
-                st.info("MACD/Signal Line not available.")
-
-            if 'RSI_14' in data.columns:
-                st.subheader("📊 RSI Indicator")
-                st.line_chart(data['RSI_14'])
-            else:
-                st.info("RSI not available.")
-
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
+        st.subheader("📈 RSI Indicator")
+        st.line_chart(data[['RSI']])
