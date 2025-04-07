@@ -1,10 +1,11 @@
 import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
-import pandas_ta as ta
+from pandas_ta.momentum import rsi
+from pandas_ta.trend import macd
 
 # App Layout
-st.set_page_config(page_title="Stock Tracker", layout="wide")
+st.set_page_config(page_title="Stock Trading App", layout="wide")
 st.title("📊 Stock Trading Dashboard")
 
 # Sidebar Controls
@@ -25,12 +26,12 @@ price = info.get("regularMarketPrice", 0)
 st.subheader(f"📌 {name} ({ticker})")
 st.metric(label="Current Price", value=f"${price:.2f}")
 
-# Technical Indicators
-data['RSI'] = ta.rsi(data['Close'], length=14)
-macd = ta.macd(data['Close'])
-data = data.join(macd)
+# === ADD TECHNICAL INDICATORS ===
+data['RSI'] = rsi(data['Close'], length=14)
+macd_data = macd(data['Close'])
+data = data.join(macd_data)
 
-# Candlestick Chart
+# === CHART: Candlestick ===
 fig = go.Figure()
 fig.add_trace(go.Candlestick(
     x=data.index,
@@ -38,18 +39,20 @@ fig.add_trace(go.Candlestick(
     high=data['High'],
     low=data['Low'],
     close=data['Close'],
-    name="Candlesticks"
+    name="Candlestick"
 ))
 fig.update_layout(title=f"{ticker} Price Chart ({interval})", template="plotly_dark", xaxis_rangeslider_visible=False)
 st.plotly_chart(fig, use_container_width=True)
 
-# RSI & MACD Charts
+# === CHARTS: Technical Indicators ===
 st.subheader("📉 Technical Indicators")
 
 col1, col2 = st.columns(2)
+
 with col1:
     st.line_chart(data['RSI'], use_container_width=True)
     st.caption("Relative Strength Index (RSI)")
+
 with col2:
     st.line_chart(data[['MACD_12_26_9', 'MACDs_12_26_9']], use_container_width=True)
     st.caption("MACD and Signal Line")
