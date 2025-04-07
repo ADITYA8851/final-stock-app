@@ -69,5 +69,8 @@ with col1:
     st.caption("Relative Strength Index (RSI)")
 
 with col2:
-    st.line_chart(data[['MACD', 'Signal_Line']], use_container_width=True)
-    st.caption("MACD & Signal Line")
+    if 'MACD' in data.columns and 'Signal_Line' in data.columns:
+        st.line_chart(data[['MACD', 'Signal_Line']], use_container_width=True)
+        st.caption("MACD & Signal Line")
+    else:
+        st.warning("Not enough data to calculate MACD. Try a larger time range or different interval.")
